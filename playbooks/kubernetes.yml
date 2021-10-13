@@ -1,0 +1,101 @@
+---
+- hosts: all
+  tasks:
+  - name: TDNF Update
+    shell: /usr/bin/tdnf -y update
+  - name: Package Facts Photon
+    shell: /usr/bin/tdnf list | cut -d\. -f1
+    register: tdnf_facts
+  - name: Register Photon Packages
+    set_fact:
+      ansible_facts: "{{ ansible_facts | combine({'packages': tdnf_facts.stdout_lines}) }}"
+  - name: Install K8s Core Packages
+    shell: /usr/bin/tdnf -y install {{item}}
+    when: item not in ansible_facts.packages
+    with_items:
+    - kubernetes
+    - iptables
+  - name: Configuring KUBE_MASTER
+    lineinfile:
+      path: /etc/kubernetes/config
+      backup: yes
+      regexp: ^KUBE_MASTER
+      line: KUBE_MASTER="--master=http://k8s-server01.localdomain:8080"
+
+- hosts: k8s-server
+  tasks:
+  - name: Install K8s Server Packages
+    shell: /usr/bin/tdnf -y install {{item}}
+    when: item not in ansible_facts.packages
+    with_items:
+    - bindutils
+  - name: Open Kubernetes API Server Port 8080
+    iptables:
+      chain: INPUT
+      protocol: tcp
+      destination_port: 8080
+      jump: ACCEPT
+      comment: Kubernetes API Server
+  - name: Configuring KUBE_API_ADDRESS
+    lineinfile:
+      path: /etc/kubernetes/apiserver
+      backup: yes
+      regexp: ^KUBE_API_ADDRESS
+      line: KUBE_API_ADDRESS="--address=0.0.0.0"
+  - name: Enable K8s Server Services
+    systemd:
+      name: '{{ item }}'
+      enabled: yes
+      state: restarted
+    with_items:
+    - etcd
+    - kube-apiserver
+    - kube-controller-manager
+    - kube-scheduler
+
+# kubectl get nodes -o jsonpath='{.items[*].metadata.name}'
+
+- hosts: k8s-node
+  tasks:
+  - name: Install K8s Node Packages
+    shell: /usr/bin/tdnf -y install {{item}}
+    when: item not in ansible_facts.packages
+    with_items:
+    - docker
+  - name: Open Kubernetes Kubelet Port 10250
+    iptables:
+      chain: INPUT
+      protocol: tcp
+      destination_port: 10250
+      jump: ACCEPT
+      comment: Kubernetes Kubelet
+  - name: Configuring KUBELET_ADDRESS
+    lineinfile:
+      path: /etc/kubernetes/kubelet
+      backup: yes
+      regexp: ^KUBELET_ADDRESS
+      line: KUBELET_ADDRESS="--address=0.0.0.0"
+  - name: Configuring KUBELET_HOSTNAME
+    lineinfile:
+      path: /etc/kubernetes/kubelet
+      backup: yes
+      regexp: ^KUBELET_HOSTNAME
+      line: KUBELET_HOSTNAME=""
+  - name: Configuring kubeconfig cluster
+    copy:
+      dest: /etc/kubernetes/kubeconfig
+      backup: yes
+      content: |
+        apiVersion: v1
+        clusters:
+        - cluster:
+            server: http://k8s-server01.localdomain:8080
+  - name: Enable K8s Node Services
+    systemd:
+      name: '{{item}}'
+      enabled: yes
+      state: restarted
+    with_items:
+    - kube-proxy
+    - kubelet
+    - docker

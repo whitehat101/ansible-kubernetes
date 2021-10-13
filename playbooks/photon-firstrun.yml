@@ -1,0 +1,20 @@
+---
+- hosts: all
+  tasks:
+  - name: Set authorized key
+    authorized_key:
+      user: root
+      state: present
+      key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_ed25519.pub') }}"
+      key_options: 'no-port-forwarding'
+      exclusive: yes
+  - name: Update Hostname
+    copy:
+      content: "{{ hostname }}\n"
+      dest: /etc/hostname
+  - name: Randomize DHCP Machine ID
+    copy:
+      content: "\n"
+      dest: /etc/machine-id
+  - name: Restart Photon VM
+    reboot:

@@ -1,0 +1,8 @@
+version: '3.9'
+services:
+  ansible:
+    build: .
+    volumes:
+    - ./hosts.yml:/etc/ansible/hosts
+    - ./playbooks:/root/playbooks
+    - ./ssh:/root/.ssh
