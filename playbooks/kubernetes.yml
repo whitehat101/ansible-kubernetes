@@ -1,20 +1,11 @@
 ---
 - hosts: all
   tasks:
-  - name: TDNF Update
-    shell: /usr/bin/tdnf -y update
-  - name: Package Facts Photon
-    shell: /usr/bin/tdnf list | cut -d\. -f1
-    register: tdnf_facts
-  - name: Register Photon Packages
-    set_fact:
-      ansible_facts: "{{ ansible_facts | combine({'packages': tdnf_facts.stdout_lines}) }}"
   - name: Install K8s Core Packages
-    shell: /usr/bin/tdnf -y install {{item}}
-    when: item not in ansible_facts.packages
-    with_items:
-    - kubernetes
-    - iptables
+    tdnf:
+      name: kubernetes,iptables
+      state: latest
+      update_cache: yes
   - name: Configuring KUBE_MASTER
     lineinfile:
       path: /etc/kubernetes/config
@@ -25,10 +16,9 @@
 - hosts: k8s-server
   tasks:
   - name: Install K8s Server Packages
-    shell: /usr/bin/tdnf -y install {{item}}
-    when: item not in ansible_facts.packages
-    with_items:
-    - bindutils
+    tdnf:
+      name: bindutils
+      state: latest
   - name: Open Kubernetes API Server Port 8080
     iptables:
       chain: INPUT
@@ -58,10 +48,9 @@
 - hosts: k8s-node
   tasks:
   - name: Install K8s Node Packages
-    shell: /usr/bin/tdnf -y install {{item}}
-    when: item not in ansible_facts.packages
-    with_items:
-    - docker
+    tdnf:
+      name: docker
+      state: latest
   - name: Open Kubernetes Kubelet Port 10250
     iptables:
       chain: INPUT

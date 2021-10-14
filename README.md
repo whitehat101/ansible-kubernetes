@@ -27,16 +27,3 @@ Default password is `changeme`, temporarily set it to anything. It will be scram
 ## Run the Playbook
 
     ansible-playbook ~/playbooks/kubernetes.yml
-
-## Notes
-
-I was hoping the Photon Ansible patch would work, but I couldn't figure out how to use their
-version of the `tdnf` module. https://github.com/vmware/photon/issues/1245
-
-Here's a scratchpad from my attempts to build their patched ansible.
-
-    RUN tdnf install -y rpm-build git
-    RUN git clone https://github.com/vmware/photon.git --depth 1 --branch master --single-branch vmware-photon
-    RUN mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-    RUN echo '%_topdir %(echo $HOME)/rpmbuild' > ~/.rpmmacros
-    https://packages.vmware.com/photon/3.0/photon_srpms_3.0_x86_64/BUILD%20and%20INSTALL.txt
